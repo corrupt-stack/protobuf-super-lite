@@ -1,0 +1,67 @@
+# Copyright 2022 Yuri Wiitala. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("protobuf_super_lite") {
+  sources = [
+    "pb/codec/endian.h",
+    "pb/codec/field_rules.h",
+    "pb/codec/iterable_util.h",
+    "pb/codec/iterable_util-internal.h",
+    "pb/codec/limits.h",
+    "pb/codec/map_field_entry.h",
+    "pb/codec/map_field_entry-internal.h",
+    "pb/codec/map_field_entry_facade.h",
+    "pb/codec/parse.h",
+    "pb/codec/serialize.h",
+    "pb/codec/tag.h",
+    "pb/codec/wire_type.h",
+    "pb/codec/zigzag.h",
+    "pb/field_list.h",
+    "pb/integer_wrapper.h",
+    "pb/integer_wrapper-internal.h",
+    "pb/parse.h",
+    "pb/serialize.h",
+  ]
+}
+
+source_set("protobuf_inspection") {
+  include_dirs = [ "." ]
+  sources = [
+    "pb/inspection.cc",
+    "pb/inspection.h",
+  ]
+  deps = [ ":protobuf_super_lite" ]
+}
+
+executable("protobuf_dump") {
+  include_dirs = [ "." ]
+  sources = [ "pb/protobuf_dump.cc" ]
+  deps = [ ":protobuf_inspection" ]
+}
+
+executable("protobuf_unittests") {
+  testonly = true
+
+  include_dirs = [ "." ]
+
+  sources = [
+    "pb/codec/endian_unittest.cc",
+    "pb/codec/field_rules_unittest.cc",
+    "pb/codec/iterable_util_unittest.cc",
+    "pb/codec/map_field_entry_unittest.cc",
+    "pb/codec/parse_unittest.cc",
+    "pb/codec/serialize_unittest.cc",
+    "pb/codec/tag_unittest.cc",
+    "pb/codec/wire_type_unittest.cc",
+    "pb/codec/zigzag_unittest.cc",
+    "pb/examples_unittest.cc",
+    "pb/inspection_unittest.cc",
+  ]
+
+  deps = [
+    ":protobuf_inspection",
+    ":protobuf_super_lite",
+    "third_party:googletest_main",
+  ]
+}

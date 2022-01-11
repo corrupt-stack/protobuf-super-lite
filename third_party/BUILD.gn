@@ -1,0 +1,68 @@
+# Copyright 2022 Yuri Wiitala. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+config("googletest_config") {
+  include_dirs = [
+    "googletest/googletest/include",
+    "googletest/googlemock/include",
+  ]
+
+  cflags_cc = [
+    "-Wno-exit-time-destructors",
+    "-Wno-gnu-zero-variadic-macro-arguments",
+    "-Wno-inconsistent-missing-override",
+    "-Wno-sign-conversion",
+  ]
+
+  if (use_gcc_instead_of_llvm) {
+    cflags_cc += [
+      "-Wno-overflow",  # G++'s overflow conversion check breaks googlemock.
+    ]
+  }
+
+  defines = [
+    "GTEST_HAS_EXCEPTIONS=0",
+    "GTEST_HAS_POSIX_RE=0",
+    "GTEST_HAS_PTHREAD=0",
+    "GTEST_HAS_RTTI=0",
+    "GTEST_LINKED_AS_SHARED_LIBRARY=0",
+  ]
+}
+
+static_library("googletest") {
+  testonly = true
+
+  sources = [
+    "googletest/googlemock/src/gmock-cardinalities.cc",
+    "googletest/googlemock/src/gmock-internal-utils.cc",
+    "googletest/googlemock/src/gmock-matchers.cc",
+    "googletest/googlemock/src/gmock-spec-builders.cc",
+    "googletest/googlemock/src/gmock.cc",
+    "googletest/googletest/src/gtest-death-test.cc",
+    "googletest/googletest/src/gtest-filepath.cc",
+    "googletest/googletest/src/gtest-internal-inl.h",
+    "googletest/googletest/src/gtest-matchers.cc",
+    "googletest/googletest/src/gtest-port.cc",
+    "googletest/googletest/src/gtest-printers.cc",
+    "googletest/googletest/src/gtest-test-part.cc",
+    "googletest/googletest/src/gtest-typed-test.cc",
+    "googletest/googletest/src/gtest.cc",
+  ]
+
+  include_dirs = [
+    "googletest/googlemock",
+    "googletest/googletest",
+  ]
+
+  public_configs = [ ":googletest_config" ]
+  configs -= [ "//build:default_include_dirs" ]
+}
+
+source_set("googletest_main") {
+  testonly = true
+  sources = [ "googletest/googlemock/src/gmock_main.cc" ]
+  public_deps = [ ":googletest" ]
+  configs -= [ "//build:default_include_dirs" ]
+}
+

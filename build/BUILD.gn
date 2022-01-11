@@ -1,0 +1,165 @@
+# Copyright 2022 Yuri Wiitala. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+declare_args() {
+  # Set to true to enable assertions, even if it's not a debug build.
+  assertions_always_on = false
+
+  # Enable address sanitizer (LLVM toolchain only).
+  is_asan = false
+
+  # Set to true for fuzzing targets (LLVM toolchain only).
+  use_libfuzzer = false
+
+  # If this is enabled and target_cpu == host_cpu, the compiler will be allowed
+  # to use all instructions available to optimize the build. This constrains the
+  # built binaries to be specific to a single processor family.
+  enable_all_host_cpu_instructions = true
+}
+
+config("compiler_defaults") {
+  cflags = []
+  ldflags = []
+
+  if (!use_gcc_instead_of_llvm) {
+    cflags += [
+      "-fcolor-diagnostics",
+      "-fdebug-macro",
+    ]
+    ldflags += [
+      "-fcolor-diagnostics",
+    ]
+  }
+
+  defines = []
+
+  cflags += [
+    "-freciprocal-math",
+  ]
+  if (is_debug) {
+    cflags += [
+      "-g3",
+      "-O0",
+      "-fstack-protector-strong",
+    ]
+    ldflags += [
+      "-g3",
+      "-O0",
+      "-fstack-protector-strong",
+    ]
+  } else {
+    cflags += [
+      "-g1",
+      "-O3",
+      "-fdata-sections",
+      "-ffunction-sections",
+    ]
+    ldflags += [
+      "-g1",
+      "-O3",
+      "-fdata-sections",
+      "-ffunction-sections",
+      "-Wl,--gc-sections",
+    ]
+    if (!assertions_always_on) {
+      defines += [ "NDEBUG" ]
+    }
+  }
+
+  if (enable_all_host_cpu_instructions && target_cpu == host_cpu) {
+    cflags += [ "-march=native" ]
+    ldflags += [ "-march=native" ]
+  }
+
+  cflags_cc = [
+    "--std=c++17",
+  ]
+  ldflags += [
+    "--std=c++17",
+  ]
+  if (!use_gcc_instead_of_llvm) {
+    cflags_cc += [
+      "-stdlib=libc++",
+      "-Wexit-time-destructors",
+    ]
+    ldflags += [
+      "-stdlib=libc++",
+    ]
+  }
+}
+
+config("no_exceptions") {
+  cflags_cc = [
+    "-fno-exceptions",
+    "-fno-unwind-tables",
+    "-fno-asynchronous-unwind-tables",
+  ]
+}
+
+config("no_rtti") {
+  cflags_cc = [ "-fno-rtti" ]
+}
+
+config("high_coding_standards") {
+  cflags = [
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Werror",
+
+    "-Wextra-semi",
+    "-Wimplicit-fallthrough",
+    "-Wconversion",
+  ]
+
+  if (use_gcc_instead_of_llvm) {
+    cflags += [
+      "-Wno-attributes",  # Same as Clang's -Wno-unknown-attributes.
+      "-Wno-conversion",  # GCC's checks are too agressive when bit-twiddling.
+      "-Wno-pedantic",  # We want to allow designated initializers.
+      "-Wno-comment",  # Mute errors about multi-line comments using //
+      "-Wno-unused-local-typedefs",  # Because they get used non-locally?!?
+    ]
+  } else {
+    cflags += [
+      "-Wliteral-range",
+
+      "-Wno-c99-extensions",  # e.g., designated initializers are awesome.
+      "-Wno-c++20-extensions",  # TODO: Remove if upgrading to C++20.
+      "-Wno-unknown-attributes",
+      "-Wno-zero-length-array",
+    ]
+  }
+}
+
+config("symbol_visibility_hidden") {
+  cflags = [ "-fvisibility=hidden" ]
+}
+
+config("symbol_visibility_default") {
+  cflags = [ "-fvisibility=default" ]
+}
+
+config("default_sanitizers") {
+  cflags = []
+  ldflags = []
+
+  if (is_asan) {
+    assert(!use_gcc_instead_of_llvm, "ASAN not available w/ GCC.")
+    cflags += [ "-fsanitize=address" ]
+    ldflags += [ "-fsanitize=address", "-lunwind" ]
+  }
+
+  if (use_libfuzzer) {
+    assert(!use_gcc_instead_of_llvm, "libfuzzer not available w/ GCC.")
+    cflags += [ "-fsanitize=fuzzer-no-link" ]
+    if (!is_asan) {
+      ldflags += [ "-fsanitize=address", "-lunwind" ]
+    }
+  }
+}
+
+config("default_include_dirs") {
+  include_dirs = [ "//" ]
+}
