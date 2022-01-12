@@ -108,18 +108,26 @@ bool SendAudioConfigMessage(const AudioConfig& config) {
 
 See `pb/examples_unittest.cc` for a number of usage examples.
 
-## Default Values
+## Required versus Optional fields, and default values
 
-The `AudioConfig` struct above doesn't initialize any of its members. This is
-actually bad practice since, when parsing, fields that were not present in a
-wire-format message will not be set. This will lead to undefined behavior in
-your application!
+First off, using required fields is almost always a bad idea, and Google's own
+Protocol Buffers documentation says so. The reason is because they make it
+difficult to remove deprecated fields in later versions of code.
 
-**This library will not default-set to "zero" or "empty" any of your fields.**
-Instead, parsing always executes *merge behavior*, which is discussed later.
+With this in mind, this library is designed to take the simpler approach of
+treating all fields as optional when parsing. That means there is nothing in the
+parser to check whether a *protobuf-required* field was parsed and assigned. If
+such a check is necessary, your code should do something explicit to detect any
+missing fields after a successful parse. You could set the struct data member to
+a *sentinel value* beforehand and check whether it was changed after the
+parse. For convenience, C++ data members can use `std::optional<>` or
+`std::unique_ptr<>` to accomplish this (i.e., the *sentinel value* would be
+`std::nullopt` or `nullptr` if not assigned by the parse).
 
-To solve this problem, simply default-initialize in the C++ declaration, like
-so:
+Notice how the `AudioConfig` struct, in the Usage example above, doesn't
+initialize any of its members. One hopes that all instances were at least
+zero'ed-out somewhere so that the application is not processing on uninitialized
+memory! It would be safer to have default-initializers:
 
 ```
 struct AudioConfig {
@@ -133,50 +141,32 @@ struct AudioConfig {
 };
 ```
 
-The above may not always be what you want. Meaning, when there is missing data,
-you may not want to imply a default value. Instead, you might want to handle
-that as an error in your application. This brings us to the next section of this
-document...
+Not only have default-initializers been added, but the default values are the
+most-common audio configuration. Thus, when parsing, this example application is
+assuming that any missing fields are *protobuf-optional* fields that are
+*intentionally missing*, to reduce the over-the-wire size.
 
-## Required versus Optional fields
-
-Consider the following example:
+When serializing, all fields will be emitted except those whose data members are
+a `std::optional<>` set to `std::nullopt`, a `std::unique_ptr<>` set to
+`nullptr`, or any iterable container that is empty. For example, the value of
+the `Foo::result` data member in the following struct will always be serialized:
 
 ```
-// message AudioOfferringResponse {
-//   enum Outcome { kSuccess = 0; kFail = 1; }
-//   required Outcome result = 1;
-//   optional string name = 2;
-//   required int32 config_index = 3;
-// }
-struct AudioOfferringResponse {
-  enum { kSuccess = 0, kFail = 1 } result;
-  std::optional<std::string> name;
-  int32_t config_index;
-
-  using ProtobufFields = pb::FieldList<
-      pb::Field<&AudioOfferringResponse::result, 1>,
-      pb::Field<&AudioOfferringResponse::name, 2>,
-      pb::Field<&AudioOfferringResponse::config_index, 3>>;
+struct Foo {
+  int32_t result;
+  using ProtobufFields = pb::FieldList<pb::Field<&Foo::result, 1>>;
 };
 ```
 
-Required fields are almost always a bad idea, and Google's own Protocol Buffers
-documentation says so. The reason is because they make it difficult to remove
-useless fields in later versions of code.
+However, in the following version, `Foo::result` will only be serialized if it
+has been assigned-to first:
 
-This library takes the approach of treating all fields as optional when parsing.
-That means nothing will check that a "required" field was populated during a
-successful parse. If such a check is necessary, there should be some way of
-detecting that a "required" field was missing in your code. For example, set the
-data member to a *sentinel value* beforehand and check for it after the parse.
-For convenience, C++ data members can use `std::optional<>` or
-`std::unique_ptr<>` as an aid (i.e., the *sentinel value* would be
-`std::nullopt` or `nullptr`).
-
-When serializing, all fields will be emitted, except those whose data members
-use a `std::optional<>` set to `std::nullopt`, a `std::unique_ptr<>` that is
-null, or an iterable container that is empty.
+```
+struct Foo {
+  std::optional<int32_t> result;
+  using ProtobufFields = pb::FieldList<pb::Field<&Foo::result, 1>>;
+};
+```
 
 ## Repeated Fields
 
@@ -251,30 +241,38 @@ Otherwise, your program could exhibit **undefined behavior**!
 
 ## Strings and String Views
 
-Both `std::string` and `std::string_view` are treated as protobuf
-`string`/`bytes`. There is no check to ensure they contain valid UTF-8
+Both `std::string` and `std::string_view` are treated as protobuf `bytes` (or
+`string`). There is no check to ensure they contain valid UTF-8
 code-points. They are just raw byte strings.
 
-`std::string_view` support is provided as an optimization, to reduce the copying
-of large strings in your application. It is a *loaded gun*, in that you will
-need to ensure proper memory management to prevent *shooting yourself in the
-foot*.
+Of the two, you almost always want to use `std::string`. For large strings, use
+`std::move()` to transfer ownership of the string throughout your application
+without copying. However, note that there will always be one full copy
+initially, from the wire-format input buffer being parsed into the memory
+managed by the `std::string`.
+
+If even one full copy is significantly expensive, then use `std::string_view`
+for a zero-copy code path in your application. But be careful, as you're now
+playing with a *loaded gun*, in that you will need to ensure proper memory
+management to prevent *shooting yourself in the foot* with stale/invalid
+pointers.
+
+When the parser encounters a field bound to a `std::string_view` data member,
+the member is set to an existing memory region, pointing within the wire-format
+input buffer being parsed. Thus, you must take care to ensure the input buffer
+memory remains valid until after any `std::string_view` members would be used.
+
+When, in the wire bytes, the parser does not encounter a field bound to a
+`std::string_view` data member, it leaves the data member unchanged. Thus, for
+safety, all `std::string_view` members should be set to *null* (the
+default-constructed string_view) before a parse, to ensure none are pointing to
+the stale/invalid memory from a prior parse.
 
 Before serializing, a `std::string_view` data member should either be assigned a
 valid memory pointer data+size, or should be set to *null* (the
 default-constructed string_view). When the serializer comes across a null
-`std::string_view` field, it simply interprets it as on optional field that is
+`std::string_view` field, it simply interprets it as an optional field that is
 not set.
-
-When the parser encounters a `std::string_view` field, the associated data
-member is assigned a memory region pointing within the wire-format buffer being
-parsed. Thus, you must take care to ensure the buffer memory remains valid until
-after any `std::string_view`s would be used.
-
-When the parser does not encounter a `std::string_view` field in the wire bytes,
-it leaves the data member unchanged. Thus, for safety, all `std::string_view`
-members should be set to *null* (the default-constructed string_view) before a
-parse, to ensure none are pointing to invalid memory.
 
 ## Nested Messages
 
@@ -284,7 +282,7 @@ C++ structs/classes can be used from different namespaces, imported from outside
 code modules, etc.
 
 In addition, messages are allowed to contain members that are self-referential.
-In this case, std::unique_ptr<T> can be used in C++ code. Example:
+In this case, std::unique_ptr<T> must be used in C++ code. Example:
 
 ```
 // message BinaryTree {
@@ -350,12 +348,12 @@ struct BTree {
 };
 ```
 
-## Large Objects
+## Large Objects or Object Graphs
 
-If there are concerns about performance when moving/copying nested messages
-around, then `std::unique_ptr<>` can be used to have the parser heap-allocate
-any field that is parsed. This way, the object can be safely passed throughout
-the application without having to make a copy.
+If there are concerns about performance or code complexity when moving/copying
+nested messages around, then `std::unique_ptr<>` can be used to have the parser
+heap-allocate any field that is parsed. This way, the object can be safely
+passed throughout the application without having to make copies.
 
 # Inspection and Debugging
 
@@ -371,8 +369,8 @@ the functions found in `inspection.h` and printing the results to
 standard-out. It can be invoked as `protobuf_dump input.bin`, or with no
 command-line arguments to read from standard-in. The input need not be
 well-formed (e.g., if it is a dump of something that contains protobuf and
-non-protobuf parts intermixed), but *beware that such input could throw-off the
-interpretation in wild, unpredictable ways*.
+non-protobuf parts intermixed), but **beware that such input could throw-off the
+interpretation in wild, unpredictable ways**.
 
 For example, an input of
 `0A....!fixed_64....B,The quick brown fox jumps over the lazy dog.....`
@@ -413,9 +411,9 @@ integer type.
 
 And, again, another 4 dots cannot be interpreted as anything.
 
-Finally, `B,` is interpreted as field number `8` with a length-delimited object
+Finally, `B` is interpreted as field number `8` with a length-delimited object
 after it, one of: 1) a UTF-8 string, 2) a byte array, 3) packed repeated scalar
-values; or 4) a nested message. The ',' specifies 44 bytes will follow. Here,
+values; or 4) a nested message. The `,` specifies 44 bytes will follow. Here,
 the inspection implementation uses heuristics to determine that it's not a
 nested message, and that the byte values happen to be a valid UTF-8 encoding of
 a character sequence; and so that is the interpretation result.
@@ -427,8 +425,9 @@ as anything.
 
 ## Integration with your application
 
-As the implementation is entirely C++ templates, you need only `#include` the
-necessary top-level headers where the functionality is used. Use
+All of the implementation, except the inpsection feature, is entirely C++
+templates. Thus, you'll typically only need to `#include` the necessary
+top-level headers where the functionality is used in your application code. Use
 `pb/field_list.h` (and `pb/integer_wrapper.h`, if necessary) in modules where
 your message struct/class declarations are made. Then, `#include` either
 `pb/serialize.h` or `pb/parse.h` where serialization/parsing to/from buffers
@@ -518,9 +517,9 @@ Next, configure the build for debug mode, and turn on Clang's Address Sanitizer:
 (echo 'is_debug = true'; echo 'is_asan = true') > out/Default/args.gn
 ```
 
-*Alternatively*, if using GNU G++, you must configure the build system for G++
-(and note that ASAN will not be available). Thus, `args.gn` should instead be
-generated as:
+**Alternatively**, if using GNU G++ instead of Clang, you must configure the
+build system for G++ (and note that ASAN will not be available). In this case,
+`args.gn` should instead be generated as:
 
 ```
 (echo 'is_debug = true'; echo 'use_gcc_instead_of_llvm = true') \
@@ -596,6 +595,7 @@ exceptions:
 
 ### Likely never to be implemented
 
+- Required Fields checked when parsing
 - Reserved Fields
 - Extensions
 - Wire types 3 or 4: Groups. They are deprecated anyways, and not widely used.
