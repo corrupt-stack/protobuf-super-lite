@@ -45,7 +45,12 @@ InspectionRenderingContext InspectionRenderingContext::MakeDefaultFor(
 std::ptrdiff_t InspectionRenderingContext::ComputeRowIndexOffset(
     const uint8_t* some_byte_in_the_row) const {
   const std::ptrdiff_t byte_offset = some_byte_in_the_row - offset_zero;
-  assert(byte_offset >= 0);
+  if (byte_offset < 0) {
+    // FLOOR(negative byte_offset / bytes_per_line) * bytes_per_line:
+    return ((byte_offset - (bytes_per_line - 1)) / bytes_per_line) *
+           bytes_per_line;
+  }
+  // FLOOR(positive byte_offset / bytes_per_line) * bytes_per_line:
   return (byte_offset / bytes_per_line) * bytes_per_line;
 }
 
@@ -54,7 +59,9 @@ std::string InspectionRenderingContext::MakeHexDumpRow(
     const uint8_t* begin,
     const uint8_t* end) const {
   assert(row_offset >= 0);
-  assert(begin <= end);
+  // Note: Generally |begin| should be less than or equal to |end|. However,
+  // this is not required, and makes the caller's code simpler (e.g., in cases
+  // where |end| is clamped to |limit|, which happens to be before |begin|.
 
   std::ostringstream oss;
 
@@ -81,8 +88,6 @@ std::string InspectionRenderingContext::MakeHexDumpRow(
 std::vector<std::string> InspectionRenderingContext::MakeHexDumpRows(
     const uint8_t* begin,
     const uint8_t* end) const {
-  assert(begin <= end);
-
   std::vector<std::string> lines;
   if (begin < offset_zero || offset_zero > end || limit <= begin) {
     return lines;
@@ -91,8 +96,9 @@ std::vector<std::string> InspectionRenderingContext::MakeHexDumpRows(
   std::ptrdiff_t row_offset = ComputeRowIndexOffset(begin);
   const std::ptrdiff_t end_row_offset =
       ComputeRowIndexOffset(std::min(end, limit) - 1) + bytes_per_line;
-  assert(end_row_offset >= row_offset);
-  assert(bytes_per_line > 0);
+  if (end_row_offset < row_offset) {
+    return lines;
+  }
   lines.reserve(
       static_cast<std::size_t>((end_row_offset - row_offset) / bytes_per_line));
   for (; row_offset != end_row_offset; row_offset += bytes_per_line) {
@@ -166,7 +172,6 @@ void WireSpan::PrintCodePage437CharForInspection(uint8_t ch,
 void WireSpan::PrintBytesForInspection(const uint8_t* begin,
                                        const uint8_t* end,
                                        std::ostream& utf8_out) {
-  assert(begin <= end);
   for (auto* p = begin; p < end; ++p) {
     PrintCodePage437CharForInspection(*p, utf8_out);
   }
@@ -220,7 +225,7 @@ std::vector<std::string> VarintSpan::MakeInspection(
   }
   oss << "} | sintXX{" << as_zigzag().value() << '}';
   if (value_ == 0 || value_ == 1) {
-    oss << " | bool{" << (!!value_) << '}';
+    oss << " | bool{" << (value_ ? "true" : "false") << '}';
   }
   lines[0] += std::move(oss).str();
 
@@ -808,7 +813,6 @@ std::vector<std::unique_ptr<WireSpan>> ScanForMessageFields(
     const uint8_t* begin,
     const uint8_t* end,
     bool permissive) {
-  assert(begin <= end);
   return ScanForMessageFieldsRecursively(begin, end, 0, permissive);
 }
 
@@ -816,7 +820,7 @@ std::unique_ptr<MessageSpan> ParseProbableMessage(const uint8_t* begin,
                                                   const uint8_t* end) {
   assert(begin <= end);
   if (auto spans = ScanForMessageFields(begin, end, false);
-      spans.empty() == ((end - begin) == 0)) {
+      spans.empty() == (begin == end)) {
     return std::make_unique<MessageSpan>(
         begin, end, 0, AsVectorOfFieldSpans(std::move(spans)));
   }
