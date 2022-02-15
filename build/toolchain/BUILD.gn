@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-
 toolchain("gcc") {
   tool("cc") {
     depfile = "{{output}}.d"
@@ -74,9 +73,7 @@ toolchain("gcc") {
   }
 }
 
-
 ################################################################################
-
 
 toolchain("llvm_on_posix") {
   clang_postfix = ""
@@ -101,7 +98,8 @@ toolchain("llvm_on_posix") {
 
   tool("alink") {
     rspfile = "{{output}}.rsp"
-    command = "rm -f {{output}} && llvm-ar$clang_postfix rcs {{output}} @$rspfile"
+    command =
+        "rm -f {{output}} && llvm-ar$clang_postfix rcs {{output}} @$rspfile"
     description = "AR {{target_output_name}}{{output_extension}}"
     rspfile_content = "{{inputs}}"
     outputs =
@@ -115,8 +113,7 @@ toolchain("llvm_on_posix") {
     sofile = "{{output_dir}}/$soname"
     rspfile = soname + ".rsp"
 
-    command =
-        "clang++$clang_postfix -fuse-ld=lld -shared {{ldflags}} -o $sofile -Wl,-soname=$soname @$rspfile"
+    command = "clang++$clang_postfix -fuse-ld=lld -shared {{ldflags}} -o $sofile -Wl,-soname=$soname @$rspfile"
     rspfile_content = "-Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}}"
 
     description = "SOLINK $soname"

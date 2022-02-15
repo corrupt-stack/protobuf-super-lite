@@ -65,4 +65,3 @@ source_set("googletest_main") {
   public_deps = [ ":googletest" ]
   configs -= [ "//build:default_include_dirs" ]
 }
-

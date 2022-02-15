@@ -27,16 +27,12 @@ config("compiler_defaults") {
       "-fcolor-diagnostics",
       "-fdebug-macro",
     ]
-    ldflags += [
-      "-fcolor-diagnostics",
-    ]
+    ldflags += [ "-fcolor-diagnostics" ]
   }
 
   defines = []
 
-  cflags += [
-    "-freciprocal-math",
-  ]
+  cflags += [ "-freciprocal-math" ]
   if (is_debug) {
     cflags += [
       "-g3",
@@ -72,20 +68,14 @@ config("compiler_defaults") {
     ldflags += [ "-march=native" ]
   }
 
-  cflags_cc = [
-    "--std=c++17",
-  ]
-  ldflags += [
-    "--std=c++17",
-  ]
+  cflags_cc = [ "--std=c++17" ]
+  ldflags += [ "--std=c++17" ]
   if (!use_gcc_instead_of_llvm) {
     cflags_cc += [
       "-stdlib=libc++",
       "-Wexit-time-destructors",
     ]
-    ldflags += [
-      "-stdlib=libc++",
-    ]
+    ldflags += [ "-stdlib=libc++" ]
   }
 }
 
@@ -148,14 +138,20 @@ config("default_sanitizers") {
   if (is_asan) {
     assert(!use_gcc_instead_of_llvm, "ASAN not available w/ GCC.")
     cflags += [ "-fsanitize=address" ]
-    ldflags += [ "-fsanitize=address", "-lunwind" ]
+    ldflags += [
+      "-fsanitize=address",
+      "-lunwind",
+    ]
   }
 
   if (use_libfuzzer) {
     assert(!use_gcc_instead_of_llvm, "libfuzzer not available w/ GCC.")
     cflags += [ "-fsanitize=fuzzer-no-link" ]
     if (!is_asan) {
-      ldflags += [ "-fsanitize=address", "-lunwind" ]
+      ldflags += [
+        "-fsanitize=address",
+        "-lunwind",
+      ]
     }
   }
 }

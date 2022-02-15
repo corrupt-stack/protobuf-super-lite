@@ -6,11 +6,11 @@ source_set("protobuf_super_lite") {
   sources = [
     "pb/codec/endian.h",
     "pb/codec/field_rules.h",
-    "pb/codec/iterable_util.h",
     "pb/codec/iterable_util-internal.h",
+    "pb/codec/iterable_util.h",
     "pb/codec/limits.h",
-    "pb/codec/map_field_entry.h",
     "pb/codec/map_field_entry-internal.h",
+    "pb/codec/map_field_entry.h",
     "pb/codec/map_field_entry_facade.h",
     "pb/codec/parse.h",
     "pb/codec/serialize.h",
@@ -18,8 +18,8 @@ source_set("protobuf_super_lite") {
     "pb/codec/wire_type.h",
     "pb/codec/zigzag.h",
     "pb/field_list.h",
-    "pb/integer_wrapper.h",
     "pb/integer_wrapper-internal.h",
+    "pb/integer_wrapper.h",
     "pb/parse.h",
     "pb/serialize.h",
   ]
