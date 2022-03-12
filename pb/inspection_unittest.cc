@@ -165,7 +165,7 @@ TEST(InspectionTest, OneMessage) {
       "00000040  61 70 70 72 6f 78 69 6d 61 74 65 6c 79 3a          ⦙     approximately:\n"
       "00000040                                            11 7f    ⦙ [2] = double{3.14159} | (s)fixed64{4614256657332092287}\n"
       "00000050  bd c2 82 fb 21 09 40                               ⦙ \n"
-      "00000050                       18 01                         ⦙ [3] = (u)intXX{1} | sintXX{-1} | bool{1}\n"
+      "00000050                       18 01                         ⦙ [3] = (u)intXX{1} | sintXX{-1} | bool{true}\n"
       "00000050                                                   }\n",
       // clang-format on
       MakePrintedInspection(*parsed));
@@ -195,7 +195,7 @@ TEST(InspectionTest, OneMessageSurroundedByGarbage) {
       "00000060  20 61 70 70 72 6f 78 69 6d 61 74 65 6c 79 3a          approximately:\n"
       "00000060                                               11  [2] = double{3.14159} | (s)fixed64{4614256657332092287}\n"
       "00000070  7f bd c2 82 fb 21 09 40                          \n"
-      "00000070                          18 01                    [3] = (u)intXX{1} | sintXX{-1} | bool{1}\n"
+      "00000070                          18 01                    [3] = (u)intXX{1} | sintXX{-1} | bool{true}\n"
       "00000070                                f7 f7 f7 f7 f7 f7  ≈≈≈≈≈≈\n"
       "00000080  f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7  ≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈\n"
       "00000090  f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7  ≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈\n"
@@ -225,7 +225,7 @@ TEST(InspectionTest, TwoMessages) {
       "00000040  61 70 70 72 6f 78 69 6d 61 74 65 6c 79 3a            approximately:\n"
       "00000040                                            11 7f  [2] = double{3.14159} | (s)fixed64{4614256657332092287}\n"
       "00000050  bd c2 82 fb 21 09 40                             \n"
-      "00000050                       18 01                       [3] = (u)intXX{1} | sintXX{-1} | bool{1}\n"
+      "00000050                       18 01                       [3] = (u)intXX{1} | sintXX{-1} | bool{true}\n"
       "00000050                             0a 38 48 6f 77 65 76  [1] = 56-char UTF-8: Howev\n"
       "00000060  65 72 2c 20 6d 79 20 66 61 76 6f 72 69 74 65 20      er, my favorite \n"
       "00000070  69 72 72 61 74 69 6f 6e 61 6c 20 6e 75 6d 62 65      irrational numbe\n"
