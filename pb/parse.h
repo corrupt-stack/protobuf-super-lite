@@ -21,8 +21,8 @@ template <class Message,
 [[nodiscard]] bool MergeFromBuffer(const uint8_t* begin,
                                    const uint8_t* end,
                                    Message& message) {
-  assert(begin && (begin <= end));
-  return !!codec::ParseFields(begin, end, 0, message);
+  assert((begin && (begin < end)) || (begin == end));
+  return codec::ParseFields(begin, end, 0, message) == end;
 }
 
 // Parses the buffer given by the range |begin| to |end| into a heap-allocated
@@ -37,9 +37,9 @@ template <class Message,
                            int> = 0>
 [[nodiscard]] std::unique_ptr<Message> Parse(const uint8_t* begin,
                                              const uint8_t* end) {
-  assert(begin && (begin <= end));
+  assert((begin && (begin < end)) || (begin == end));
   auto message = std::make_unique<Message>();
-  if (!codec::ParseFields(begin, end, 0, *message)) {
+  if (codec::ParseFields(begin, end, 0, *message) != end) {
     message.reset();
   }
   return message;
